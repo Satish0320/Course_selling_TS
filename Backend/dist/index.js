@@ -13,64 +13,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const zod_1 = __importDefault(require("zod"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const JWT_SECRET = "satish0123456789";
-const Db_1 = require("./Db");
+const mongoose_1 = __importDefault(require("mongoose"));
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-app.post("/user/signup", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const requirebody = zod_1.default.object({
-        name: zod_1.default.string(),
-        email: zod_1.default.string().email(),
-        password: zod_1.default.string(),
-        role: zod_1.default.string()
+const user_routes_1 = require("./user_routes");
+const admin_routes_1 = require("./admin_routes");
+app.use("/user", user_routes_1.UserRouter);
+app.use("/admin", admin_routes_1.AdminRouter);
+function connect() {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield mongoose_1.default.connect("mongodb+srv://Satish3:Satish3.0@cluster0.w4ugm0a.mongodb.net/Course_Selling_ts");
+        app.listen(4000);
+        console.log("Connected Sucessfully");
     });
-    const validaterequirebosy = requirebody.safeParse(req.body);
-    if (!validaterequirebosy.success) {
-        res.json({
-            message: "invalid inputs",
-            error: validaterequirebosy.error
-        });
-        return;
-    }
-    const name = req.body.name;
-    const email = req.body.email;
-    const password = req.body.password;
-    const role = req.body.role;
-    const hashpassword = yield bcrypt_1.default.hash(password, 5);
-    const newUser = yield Db_1.usermodel.create({
-        name: name,
-        email: email,
-        password: hashpassword,
-        role: role || "student"
-    });
-    res.json({
-        message: "User created",
-        newUser
-    });
-}));
-app.post("/user/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const email = req.body.email;
-    const password = req.body.password;
-    const finduser = yield Db_1.usermodel.findOne({
-        email: email
-    });
-    if (!finduser) {
-        res.json({
-            message: "Invalid email or password"
-        });
-        return;
-    }
-    const hashpassword = yield bcrypt_1.default.compare(password, finduser.password);
-    const payload = { userId: finduser._id, role: finduser.role };
-    if (hashpassword) {
-        const Token = jsonwebtoken_1.default.sign(payload, JWT_SECRET);
-        res.json({
-            Token,
-            message: "Welcome user",
-        });
-    }
-}));
-app.listen(4000);
+}
+connect();

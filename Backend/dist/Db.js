@@ -33,9 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.usermodel = void 0;
+exports.enrollmentmodel = exports.coursemodel = exports.usermodel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-mongoose_1.default.connect("mongodb+srv://Satish3:Satish3.0@cluster0.w4ugm0a.mongodb.net/Course_Selling_ts");
 var Irole;
 (function (Irole) {
     Irole["STUDENT"] = "student";
@@ -55,5 +54,30 @@ const Userschema = new mongoose_1.Schema({
 }, {
     timestamps: true
 });
+const courseschema = new mongoose_1.Schema({
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    price: { type: Number, required: true },
+    admin_id: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+    },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+}, {
+    timestamps: true
+});
+const enrollmentschema = new mongoose_1.Schema({
+    user_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
+    course_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Course", required: true },
+    enrollmentdate: { type: Date, default: Date.now }
+}, {
+    timestamps: true
+});
 const usermodel = mongoose_1.default.model("User", Userschema);
 exports.usermodel = usermodel;
+const coursemodel = mongoose_1.default.model("Course", courseschema);
+exports.coursemodel = coursemodel;
+const enrollmentmodel = mongoose_1.default.model("Enrollment", enrollmentschema);
+exports.enrollmentmodel = enrollmentmodel;
