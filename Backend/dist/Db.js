@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.enrollmentmodel = exports.coursemodel = exports.usermodel = void 0;
+exports.paymentmodel = exports.enrollmentmodel = exports.coursemodel = exports.usermodel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 var Irole;
 (function (Irole) {
@@ -49,6 +49,7 @@ const Userschema = new mongoose_1.Schema({
         enum: Object.values(Irole),
         default: Irole.STUDENT
     },
+    wallet: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 }, {
@@ -71,7 +72,16 @@ const courseschema = new mongoose_1.Schema({
 const enrollmentschema = new mongoose_1.Schema({
     user_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     course_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Course", required: true },
+    payment_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Payment", required: true },
     enrollmentdate: { type: Date, default: Date.now }
+}, {
+    timestamps: true
+});
+const paymentschema = new mongoose_1.Schema({
+    user_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
+    course_id: { type: mongoose_1.Schema.Types.ObjectId, ref: "Course", required: true },
+    amount: { type: Number, required: true },
+    paymentDate: { type: Date, default: Date.now }
 }, {
     timestamps: true
 });
@@ -81,3 +91,5 @@ const coursemodel = mongoose_1.default.model("Course", courseschema);
 exports.coursemodel = coursemodel;
 const enrollmentmodel = mongoose_1.default.model("Enrollment", enrollmentschema);
 exports.enrollmentmodel = enrollmentmodel;
+const paymentmodel = mongoose_1.default.model("Payment", paymentschema);
+exports.paymentmodel = paymentmodel;

@@ -3,7 +3,7 @@ import z, { string } from "zod";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 const JWT_SECRET = "satish0123456789"
-import { coursemodel, enrollmentmodel, Ienrolment, usermodel } from "./Db"
+import { coursemodel, enrollmentmodel, Ienrolment, Ipayment, paymentmodel, usermodel } from "./Db"
 import { Iuser } from "./Db"
 import { isAdmin, isUser } from "./middleware";
 
@@ -16,6 +16,7 @@ UserRouter.post("/signup", async (req, res) => {
         email: z.string().email(),
         password: z.string(),
         role: z.string().optional()
+
     })
     const validaterequirebosy = requirebody.safeParse(req.body);
 
@@ -31,14 +32,18 @@ UserRouter.post("/signup", async (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     const role = req.body.role
+    
 
     const hashpassword = await bcrypt.hash(password, 5);
+
+    const RandomMoney = Math.floor(Math.random() * 100000)
 
     const User: Iuser = await usermodel.create({
         name: name,
         email: email,
         password: hashpassword,
-        role: role || "student"
+        role: role || "student",
+        wallet: RandomMoney
     })
 
     res.json({
@@ -78,78 +83,161 @@ UserRouter.post("/signin", async (req, res) => {
     }
 })
 
-  UserRouter.get("/courses", async (req, res)=>{
+UserRouter.get("/courses", async (req, res) => {
 
     const courses = await coursemodel.find()
 
     const CourseDetails = courses.map(course => ({
-        Title : course.title,
-        Description : course.description,
-        Price : course.price,
+        Title: course.title,
+        Description: course.description,
+        Price: course.price,
     }))
-  ;
+        ;
 
     res.json({
         CourseDetails
 
     })
-  })
+})
 
 
-  UserRouter.post("/enroll", isUser  ,async (req, res)=>{
-    const user_id = req.userId ;
+UserRouter.post("/Enrolled", isUser, async (req, res) => {
+    const user_id = req.userId;
     const course_id = req.body.course_id;
+    const payment_id = req.body.payment_id
 
     // console.log(user_id);
 
     const finduserId = await usermodel.findOne({
-        _id : user_id
+        _id: user_id
     })
 
     // console.log(finduserId);
-    
-    if (!finduserId){
+
+    if (!finduserId) {
         res.json({
             message: "Invalid user"
         })
         return;
-    } 
+    }
 
-    const findcourseId =await coursemodel.findOne({
-        _id : course_id
+    const findcourseId = await coursemodel.findOne({
+        _id: course_id
     })
 
-    if(!findcourseId){
+    if (!findcourseId) {
         res.json({
             message: "Invalid Course Id"
         })
         return;
     }
 
-    const Purchased_course: Ienrolment =await enrollmentmodel.create({
-        user_id: user_id,
-        course_id: course_id
+    const findpaymentId = await paymentmodel.findOne({
+        _id: payment_id
     })
-    
-    // const populatedEnrollment = await enrollmentmodel
-    //     .findById(Purchased_course._id)
-    //     .populate('course_id', 'title')  
-    //     .populate('user_id', 'name')     
-        
 
-    // res.json({
-    //     Purchased_course_id: populatedEnrollment?._id,
-    //     course_name: populatedEnrollment?.course_id.title,
-    //     student_name: populatedEnrollment?.user_id.name,
-    // });
+    if (!findpaymentId) {
+        res.json({
+            message: "Invalid payment Id"
+        })
+        return
+    }
+
+    const Purchased_course: Ienrolment = await enrollmentmodel.create({
+        user_id: user_id,
+        course_id: course_id,
+        payment_id: payment_id
+    })
+
+    const Purchased_Details = await enrollmentmodel
+        .findById(Purchased_course._id)
+        .populate<{ user_id: { name: string } }>("user_id", "name")
+        .populate<{ course_id: { title: string } }>("course_id", "title")
+        .populate<{ payment_id: { _id: string } }>("payment_id")
+
+
+    if (!Purchased_Details) {
+        res.status(404).json({ message: "Enrollment details not found" });
+        return;
+    }
 
     res.json({
-        Purchased_course,
-        id: Purchased_course._id
+        enrollment_id: Purchased_Details._id,
+        user_name: Purchased_Details.user_id?.name,
+        course_title: Purchased_Details.course_id?.title,
+        payment_id: Purchased_Details.payment_id?._id,
     })
 
-  })
+})
 
 
-export { UserRouter}
+UserRouter.post("/buy_course/payment", isUser, async (req, res) => {
+
+
+    const user_id = req.userId;
+    const course_id = req.body.course_id;
+    const amount = req.body.amount
+
+    const finduser = await usermodel.findOne({
+        _id: user_id
+    })
+
+    if (!finduser) {
+        res.json({
+            message: "Invaild user Id"
+        })
+        return
+    }
+
+    const findcourse = await coursemodel.findOne({
+        _id: course_id
+    })
+
+    if (!findcourse) {
+        res.json({
+            message: "Invalid course Id"
+        })
+        return
+    }
+
+    if (findcourse < amount) {
+        res.json({
+            message: "Insufficient funds"
+        })
+        return
+    }
+
+    finduser.wallet -= amount;
+    await finduser.save();
+
+    const paymentDetails: Ipayment = await paymentmodel.create({
+        user_id: user_id,
+        course_id: course_id,
+        amount: amount
+    })
+
+    const Payment_Details = await paymentmodel
+        .findById(paymentDetails._id)
+        .populate<{ course_id: { title: string } }>("course_id", "title")
+        .populate<{ user_id: { name: string } }>("user_id", "name");
+
+
+    if (!Payment_Details) {
+        res.status(404).json({ message: "Payment details not found" });
+        return
+    }
+
+    res.json({
+        payment_id: Payment_Details._id,
+        course_name: Payment_Details.course_id.title,
+        user_name: Payment_Details.user_id.name,
+        amount: paymentDetails.amount,
+        remaining_Balance: finduser.wallet
+    });
+
+
+})
+
+
+export { UserRouter }
 
